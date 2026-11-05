@@ -18,21 +18,38 @@ DEFAULT_SETTINGS = {
 }
 
 def load_payment_settings():
-    if not os.path.exists(SETTINGS_FILE):
+    merged = DEFAULT_SETTINGS.copy()
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                merged.update(data)
+        except Exception:
+            pass
+    else:
         try:
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
                 json.dump(DEFAULT_SETTINGS, f, indent=4)
         except Exception:
             pass
-        return DEFAULT_SETTINGS.copy()
-    try:
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            merged = DEFAULT_SETTINGS.copy()
-            merged.update(data)
-            return merged
-    except Exception:
-        return DEFAULT_SETTINGS.copy()
+
+    # Environment variables override (for Vercel & cloud hosting deployments)
+    env_mappings = {
+        'RAZORPAY_KEY_ID': 'razorpay_key_id',
+        'RAZORPAY_KEY_SECRET': 'razorpay_key_secret',
+        'RAZORPAY_WEBHOOK_SECRET': 'razorpay_webhook_secret',
+        'PAYMENT_MODE': 'payment_mode',
+        'MERCHANT_NAME': 'merchant_name',
+        'MERCHANT_UPI_ID': 'merchant_upi_id',
+        'STRIPE_PUBLISHABLE_KEY': 'stripe_publishable_key',
+        'STRIPE_SECRET_KEY': 'stripe_secret_key'
+    }
+    for env_k, cfg_k in env_mappings.items():
+        val = os.environ.get(env_k)
+        if val:
+            merged[cfg_k] = val.strip()
+
+    return merged
 
 def save_payment_settings(new_settings):
     current = DEFAULT_SETTINGS.copy()
